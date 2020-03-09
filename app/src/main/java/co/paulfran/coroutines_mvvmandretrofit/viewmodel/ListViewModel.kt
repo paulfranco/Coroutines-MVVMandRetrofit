@@ -2,9 +2,18 @@ package co.paulfran.coroutines_mvvmandretrofit.viewmodel
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import co.paulfran.coroutines_mvvmandretrofit.model.CountriesService
 import co.paulfran.coroutines_mvvmandretrofit.model.Country
+import kotlinx.coroutines.*
 
 class ListViewModel: ViewModel() {
+
+    // Needed for Coroutine
+    val countriesService = CountriesService.getCountriesService()
+    var job: Job? = null
+    val exceptionHandler = CoroutineExceptionHandler { coroutineContext, throwable ->
+        onError("Exception: ${throwable.localizedMessage}")
+    }
 
     val countries = MutableLiveData<List<Country>>()
     val countryLoadError = MutableLiveData<String?>()
@@ -17,26 +26,35 @@ class ListViewModel: ViewModel() {
     private fun fetchCountries() {
         loading.value = true
 
-        val dummyData = generateDummyCountries()
+        // Start job
+        // Start Coroutine for Network connection
+        job = CoroutineScope(Dispatchers.IO + exceptionHandler).launch {
+            val response = countriesService.getCountries()
+            // response on main
+            withContext(Dispatchers.Main) {
+                if (response.isSuccessful) {
+                    countries.value = response.body()
+                    countryLoadError.value = null
+                    loading.value = false
+                } else {
+                    onError("Error: ${response.message()}")
+                }
+            }
+        }
 
-        countries.value = dummyData
-        countryLoadError.value = ""
-        loading.value = false
     }
 
-    private fun generateDummyCountries(): List<Country> {
-        val countries = arrayListOf<Country>()
-        countries.add(Country("dummyCountry1",  "dummyCapital1",""))
-        countries.add(Country("dummyCountry2",  "dummyCapital2",""))
-        countries.add(Country("dummyCountry3",  "dummyCapital3",""))
-        countries.add(Country("dummyCountry4",  "dummyCapital4",""))
-        countries.add(Country("dummyCountry5",  "dummyCapital5",""))
-        return countries
-    }
+
 
     private fun onError(message: String) {
         countryLoadError.value = message
         loading.value = false
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // cancel job
+        job?.cancel()
     }
 
 }

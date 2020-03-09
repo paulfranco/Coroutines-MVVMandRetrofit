@@ -4,7 +4,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.create
 
-class CountriesService {
+object CountriesService {
 
     private val BASE_URL = "https://raw.githubusercontent.com/"
 
